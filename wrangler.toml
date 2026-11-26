@@ -1,0 +1,14 @@
+name = "disk-menezes-prototipo"
+main = "worker.mjs"
+compatibility_date = "2026-11-26"
+workers_dev = true
+preview_urls = false
+
+[build]
+command = "node build.mjs"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "disk-menezes-prototipo"
+database_id = "SUBSTITUA_PELO_ID_D1"
+migrations_dir = "migrations"

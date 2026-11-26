@@ -1,4 +1,3 @@
-
 'use strict';
 
 const paths = {
@@ -99,12 +98,13 @@ function demoData(){
   return data;
 }
 const prefix='disk-menezes-publico-';
+const hosted=document.querySelector('meta[name="disk-storage"]')?.content==='server';
 const read = key => {try{return localStorage.getItem(prefix+key)}catch{return null}};
 let environment=read('environment')==='real'?'real':'demo';
 let theme=read('theme')==='dark'?'dark':'light';
 function load(which=environment){
   try {
-    const raw=read(which);
+    const raw=hosted?null:read(which);
     if(raw) return JSON.parse(raw);
   } catch {}
   return which==='demo'?demoData():blank();
@@ -113,20 +113,101 @@ let db=load();
 let page='board', mode='complete', query='', filter='all', reportDate=dateKey(), historyDate='', analyticsPeriod='week';
 let edit=null, dialogState=null, noticeTimer;
 let mobileStage='new';
+let serverVersion=null, serverReady=!hosted, refreshSequence=0, writing=false;
+function storageStatus(message=''){
+  $('storage-banner').textContent=message;
+  $('storage-banner').hidden=!message;
+}
+function signInAgain(){
+  serverReady=false;
+  serverVersion=null;
+  if($('modal').open)$('modal').close();
+  db=load();
+  $('print').replaceChildren();
+  render(true);
+  storageStatus('A sessão precisa ser confirmada. ');
+  const link=document.createElement('a');
+  link.href='/entrar';
+  link.target='_top';
+  link.textContent='Entrar novamente';
+  $('storage-banner').append(link);
+}
 function cache(next,which){
   try{localStorage.setItem(prefix+which,JSON.stringify(next));return true}
   catch{return false}
 }
+async function remoteWrite(next,which,expected){
+  const response=await fetch('/api/state/'+which,{method:'PUT',headers:{'Content-Type':'application/json'},cache:'no-store',
+    body:JSON.stringify({expected,data:next})});
+  if(response.status===401||response.status===403||response.redirected){
+    signInAgain();
+    throw Error('Confirme a sessão para continuar.');
+  }
+  if(response.status===409) throw Error('Outro acesso alterou os dados. Feche esta tela, consulte a versão atual e tente novamente.');
+  if(response.status===413) throw Error('O volume da base excede o limite de gravação. Exporte um backup antes de continuar.');
+  if(!response.ok) throw Error('O site não confirmou a gravação. Confira a conexão e tente novamente.');
+  return (await response.json()).revision;
+}
+async function refreshRemote({bootstrap=false}={}){
+  if(!hosted||writing) return;
+  const sequence=++refreshSequence, which=environment;
+  if(bootstrap){
+    serverReady=false;
+    storageStatus('Conferindo os dados salvos no site…');
+  }
+  try{
+    const response=await fetch('/api/state/'+which,{cache:'no-store'});
+    if(sequence!==refreshSequence||which!==environment||writing)return;
+    if(response.status===401||response.status===403||response.redirected){
+      signInAgain();
+      return;
+    }
+    if(!response.ok)throw Error();
+    const result=await response.json();
+    if(sequence!==refreshSequence||which!==environment||writing)return;
+    const changed=!serverReady||serverVersion!==result.revision;
+    if(changed&&$('modal').open&&!bootstrap){
+      storageStatus('Há alterações em outro acesso. Feche o formulário para atualizar.');
+      return;
+    }
+    if(changed){
+      db=result.data??load(which);
+      render(true);
+    }
+    serverVersion=result.revision;
+    serverReady=true;
+    storageStatus();
+    updateStorageLabel();
+  }catch{
+    if(sequence!==refreshSequence||which!==environment)return;
+    serverReady=false;
+    storageStatus('Dados do site indisponíveis. Verifique a conexão para voltar a gravar.');
+    updateStorageLabel();
+  }
+}
 // A revisão evita sobrescrever uma alteração feita por outra aba ou dispositivo.
 async function persist(next){
-  const latest=read(environment);
-  if(latest && JSON.parse(latest).revision!==db.revision){
-    db=load();render();
-    throw Error('Os dados mudaram em outra aba. Confira a versão atual antes de salvar.');
+  if(writing)throw Error('Aguarde a gravação em andamento.');
+  if(hosted&&!serverReady)throw Error('Aguarde a conexão com os dados do site para gravar.');
+  const which=environment;
+  if(!hosted){
+    const latest=read(which);
+    if(latest && JSON.parse(latest).revision!==db.revision){
+      db=load();render();
+      throw Error('Os dados mudaram em outra aba. Confira a versão atual antes de salvar.');
+    }
+    next.revision=db.revision+1;
+    if(!cache(next,which))throw Error('O navegador não conseguiu salvar. Confira o espaço disponível ou abra o site online.');
+    db=next;
+    return;
   }
   next.revision=db.revision+1;
-  if(!cache(next,environment))throw Error('O navegador não conseguiu salvar.');
-  db=next;
+  refreshSequence++;
+  writing=true;
+  try{
+    serverVersion=await remoteWrite(next,which,serverVersion);
+    db=next;
+  }finally{writing=false;}
 }
 async function mutate(fn){
   const next=structuredClone(db);
@@ -474,7 +555,7 @@ function allowed(key){
   return true;
 }
 function updateStorageLabel(){
-  $('local-caption').innerHTML=icon('disk')+'<span>'+'Dados neste navegador'+'</span>';
+  $('local-caption').innerHTML=icon('disk')+'<span>'+(hosted?(serverReady?'Dados salvos no site':'Conexão com os dados'):'Dados neste navegador')+'</span>';
 }
 // No celular, a navegação principal respeita as páginas disponíveis no modo atual.
 function renderMobileNavigation(){
@@ -1018,9 +1099,11 @@ async function action(button){
       break;
     case 'open-history':navigate('history');break;
     case 'new':
+      if(!serverReady)throw Error('Aguarde a conexão com os dados para abrir um pedido.');
       if(latestClosures().some(c=>c.date===dateKey()&&c.state!=='open'))throw Error('O dia está fechado. Use Fechamento e escolha Reabrir dia.');
       editOrder();break;
     case 'edit':
+      if(!serverReady)throw Error('Aguarde a conexão com os dados para editar o pedido.');
       if(!canEditOrder(o))throw Error('Este pedido não pode mais ser editado.');
       editOrder(o);break;
     case 'order-back':showOrderStep(1);break;
@@ -1101,7 +1184,7 @@ async function action(button){
       if(writing)throw Error('Aguarde a gravação em andamento.');
       environment=environment==='demo'?'real':'demo';
       try{localStorage.setItem(prefix+'environment',environment)}catch{}
-      db=load();navigate('board');toast(environment==='demo'?'Demonstração aberta.':'Operação real aberta.');break;
+      db=load();navigate('board');await refreshRemote({bootstrap:true});toast(environment==='demo'?'Demonstração aberta.':'Operação real aberta.');break;
     case 'backup':
       download('disk-menezes-'+environment+'-'+dateKey()+'.json',JSON.stringify({schema:'disk-menezes-backup',environment,data:db},null,2),'application/json');
       break;
@@ -1212,7 +1295,7 @@ $('theme').addEventListener('click',()=>{
   try{localStorage.setItem(prefix+'theme',theme)}catch{}
   applyTheme();
 });
-$('modal').addEventListener('close',()=>{if(!$('modal').open){edit=null;dialogState=null;}});
+$('modal').addEventListener('close',()=>{if(!$('modal').open){edit=null;dialogState=null;refreshRemote();}});
 document.addEventListener('click',event=>{
   const bar=event.target.closest('[data-chart-name]');
   if(bar)showChartTooltip(bar);
@@ -1291,8 +1374,21 @@ $('backup-file').addEventListener('change',async event=>{
   }catch(error){showError(error instanceof SyntaxError?'O arquivo não contém um JSON válido.':error.message);}
 });
 window.addEventListener('storage',event=>{
-  if(event.key===prefix+environment&&!$('modal').open){db=load();render(true);}
+  if(!hosted&&event.key===prefix+environment&&!$('modal').open){db=load();render(true);}
 });
 setInterval(()=>{if((page==='board'||page==='delivery')&&!$('modal').open&&document.activeElement===document.body)render();},60000);
+window.addEventListener('focus',()=>{if(!$('modal').open)refreshRemote();});
+if(hosted)setInterval(()=>{if(!document.hidden&&!$('modal').open)refreshRemote();},25000);
+$('sign-out').hidden=!hosted;
+if(hosted)window.addEventListener('pageshow',event=>{
+  if(event.persisted){
+    if($('modal').open)$('modal').close();
+    db=load();
+    $('print').replaceChildren();
+    render(true);
+    refreshRemote({bootstrap:true});
+  }
+});
 applyTheme();
 render();
+refreshRemote({bootstrap:true});

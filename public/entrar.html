@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar | Disk Menezes</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:1.25rem;background:#f5f7fa;color:#121b2e;font:1rem/1.5 system-ui,sans-serif}
+main{width:min(100%,25rem);padding:clamp(1.25rem,5vw,2rem);background:#fff;border:1px solid #ccd5e3;border-radius:1rem;box-shadow:0 12px 36px #13203515}
+.brand{display:flex;gap:1rem;align-items:center;margin-bottom:1.5rem}
+.brand svg{width:4rem;height:4rem;flex:none;border:1px solid #f59e0b;border-radius:.75rem}
+.brand strong,.brand small{display:block}.brand small{color:#354761}
+h1{font-size:1.35rem;margin:0 0 1rem}
+form{display:grid;gap:1rem}
+label{display:grid;gap:.35rem;font-weight:650}
+input,button{width:100%;min-height:2.75rem;border-radius:.55rem;padding:.55rem .75rem;font:inherit;color:inherit}
+input{background:#fff;border:1px solid #8393aa}
+button{background:#f59e0b;border:1px solid #e38c00;font-weight:750;cursor:pointer}
+:focus-visible{outline:3px solid #205dcc;outline-offset:2px}
+.auth-link{display:block;width:fit-content;margin:1rem auto 0;color:#66350c;font-weight:700;text-underline-offset:.2em}
+.notice{padding:.65rem .75rem;background:#e8f3ff;color:#143d62;border-radius:.55rem;margin:0 0 1rem}
+.error{padding:.55rem .75rem;background:#ffeaec;color:#9b1235;border-radius:.55rem}
+</style>
+</head>
+<body><main>
+<div class="brand"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo Disk Cerveja Menezes">
+                        <defs>
+                            <path id="topArc" d="M 28,96 A 72,72 0 0,1 172,96" />
+                            <path id="botArc" d="M 32,126 A 72,72 0 0,0 168,126" />
+                            <path id="telArc" d="M 24,146 A 84,84 0 0,0 176,146" />
+                        </defs>
+                        <!-- Círculo Central -->
+                        <circle cx="100" cy="102" r="46" fill="#ffffff" stroke="#1e293b" stroke-width="2.5"/>
+                        <circle cx="100" cy="102" r="35" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+                        <!-- Raios do Brinde -->
+                        <line x1="100" y1="68" x2="100" y2="82" stroke="#1e293b" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="90" y1="71" x2="94" y2="83" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round"/>
+                        <line x1="110" y1="71" x2="106" y2="83" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round"/>
+                        <!-- Estrela Superior -->
+                        <polygon points="100,44 102,49 107,49 103,52 104,57 100,54 96,57 97,52 93,49 98,49" fill="#1e293b"/>
+                        <!-- Ramos de Cevada -->
+                        <path d="M 65,62 Q 78,52 90,52" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M 135,62 Q 122,52 110,52" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M 55,118 Q 62,135 76,144" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+                        <path d="M 145,118 Q 138,135 124,144" fill="none" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+                        <!-- Caneca Esquerda -->
+                        <g transform="translate(80, 104) rotate(-10)">
+                            <path d="M -18,-14 L -24,-14 C -27,-14 -27,10 -24,10 L -18,10" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/>
+                            <rect x="-18" y="-20" width="34" height="42" rx="4" fill="#ffffff" stroke="#1e293b" stroke-width="2.5"/>
+                            <rect x="-14" y="-10" width="26" height="29" rx="2" fill="#fbbf24"/>
+                            <path d="M -20,-20 C -20,-27 -10,-28 -4,-24 C 2,-29 14,-27 17,-20 C 19,-15 15,-11 11,-13 C 8,-8 1,-12 -4,-10 C -9,-7 -16,-11 -20,-20 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2"/>
+                        </g>
+                        <!-- Caneca Direita -->
+                        <g transform="translate(120, 104) rotate(10)">
+                            <path d="M 18,-14 L 24,-14 C 27,-14 27,10 24,10 L 18,10" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/>
+                            <rect x="-16" y="-20" width="34" height="42" rx="4" fill="#ffffff" stroke="#1e293b" stroke-width="2.5"/>
+                            <rect x="-12" y="-10" width="26" height="29" rx="2" fill="#fbbf24"/>
+                            <path d="M -17,-20 C -17,-27 -7,-28 -1,-24 C 5,-29 17,-27 20,-20 C 22,-15 18,-11 14,-13 C 11,-8 4,-12 -1,-10 C -6,-7 -13,-11 -17,-20 Z" fill="#f8fafc" stroke="#1e293b" stroke-width="2"/>
+                        </g>
+                        <!-- Textos Curvados -->
+                        <text font-family="Inter, sans-serif" font-weight="900" font-size="18.5" fill="#fbbf24" stroke="#1e293b" stroke-width="1.2" paint-order="stroke">
+                            <textPath href="#topArc" startOffset="50%" text-anchor="middle">DISK CERVEJA</textPath>
+                        </text>
+                        <text font-family="Inter, sans-serif" font-weight="900" font-size="20" fill="#fbbf24" stroke="#1e293b" stroke-width="1.2" paint-order="stroke">
+                            <textPath href="#botArc" startOffset="50%" text-anchor="middle">MENEZES</textPath>
+                        </text>
+                        <text font-family="Inter, sans-serif" font-weight="800" font-size="12.5" fill="#fbbf24" stroke="#1e293b" stroke-width="1" paint-order="stroke">
+                            <textPath href="#telArc" startOffset="50%" text-anchor="middle">37 9.9917-****</textPath>
+                        </text>
+                    </svg><div><strong>Disk Menezes</strong><small>Biquinhas, MG</small></div></div>
+<h1>Entrar na central de pedidos</h1>
+<!-- mensagem -->
+<form action="/entrar" method="post">
+<label>E-mail<input type="email" name="email" autocomplete="username" required maxlength="254" autocapitalize="none" spellcheck="false"></label>
+<label>Senha<input type="password" name="senha" autocomplete="current-password" required maxlength="256"></label>
+<button type="submit">Entrar</button>
+</form>
+<a class="auth-link" href="/recuperar">Esqueci minha senha</a>
+</main></body></html>
