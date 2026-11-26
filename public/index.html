@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
 <title>Disk Menezes | Itens nos cards</title>
 <style>
@@ -195,6 +195,39 @@ button.chart-bar:hover{filter:brightness(1.12)}
 .card-items-list strong{color:var(--stage-ink);font-variant-numeric:tabular-nums}
 .card-items details{margin-top:3px}
 .card-items summary{cursor:pointer;width:fit-content;padding-block:4px;color:var(--stage-ink);font-size:.82rem;font-weight:700}
+.app-footer #local-caption{display:inline-flex;align-items:center;gap:6px}
+</style>
+<style>
+.mobile-board-controls,.mobile-app-nav,#mobile-tools{display:none}
+@media screen and (max-width:600px){
+  header #modes,header #nav,.has-mobile-board #quick-new{display:none}
+  #mobile-tools{display:inline-flex}
+  body.has-mobile-nav{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
+  .has-mobile-board .hero{padding:15px;min-height:0;gap:10px}
+  .has-mobile-board .hero h1{font-size:clamp(1.45rem,5.6vw,1.85rem);margin:0}
+  .has-mobile-board .hero .hero-kicker,.has-mobile-board .hero p{display:none}
+  .has-mobile-board .hero .btn{width:100%;min-height:50px;justify-content:center;font-size:1rem}
+  .has-mobile-board .metrics .metric{padding:10px}
+  .has-mobile-board .metrics .metric small,.order-queue .sectionhead p{display:none}
+  #order-board{scroll-margin-top:62px;scroll-margin-bottom:72px}
+  #order-board[data-mobile-stage="new"]>.lane:not(.stage-new),
+  #order-board[data-mobile-stage="packing"]>.lane:not(.stage-packing),
+  #order-board[data-mobile-stage="route"]>.lane:not(.stage-route){display:none}
+  .mobile-board-controls{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-bottom:8px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:11px}
+  .mobile-board-controls button{display:flex;align-items:center;justify-content:center;gap:4px;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:.73rem;font-weight:750;line-height:1.1;padding:4px 2px;cursor:pointer}
+  .mobile-board-controls button[aria-pressed="true"],.mobile-app-nav .nav[aria-current="page"]{border-color:#d99a26;background:#fff0c2;color:#652e05}
+  .mobile-board-controls svg{width:15px;height:15px;flex:none}
+  .mobile-stage-count{min-width:15px;padding:2px;border-radius:9px;background:var(--soft);color:var(--ink);font-size:.65rem}
+  .mobile-app-nav:not([hidden]){position:fixed;z-index:10;display:flex;gap:4px;inset:auto 0 0;padding:5px max(6px,env(safe-area-inset-right,0px)) calc(5px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 16px #08112617}
+  .mobile-app-nav .nav{flex:1;min-width:0;min-height:48px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;border:1px solid transparent;border-radius:8px;padding:4px 1px;color:var(--ink);font-size:.72rem;text-align:center;line-height:1.1}
+  .mobile-app-nav svg{width:17px;height:17px}
+  #mobile-menu{position:fixed;inset:auto 0 0;width:100%;max-width:none;margin:0;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:calc(100dvh - 16px)}
+  #mobile-menu .mobile-menu-heading{margin-bottom:12px}
+  #mobile-menu h3{margin:12px 0 6px;font-size:.89rem}
+  #mobile-menu-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  #mobile-menu-modes .btn{min-height:44px;justify-content:center;padding-inline:4px;font-size:.82rem}
+  #mobile-menu-links .btn{display:flex;width:100%;min-height:46px;justify-content:flex-start;margin-top:6px}
+}
 </style>
 </head>
 <body>
@@ -249,13 +282,21 @@ button.chart-bar:hover{filter:brightness(1.12)}
     <div class="modebar" role="group" aria-label="Modo de visualização" id="modes"></div>
     <div class="top-actions">
       <button class="btn icononly" id="theme"></button>
+      <button class="btn icononly" type="button" data-act="mobile-menu" id="mobile-tools" aria-label="Menu de ferramentas" aria-haspopup="dialog"></button>
       <button class="btn primary" data-act="new" id="quick-new" aria-label="Novo pedido"></button>
     </div>
   </div>
   <nav id="nav" class="top-nav" aria-label="Seções"></nav>
 </header>
 <main id="main" tabindex="-1"></main>
-<footer class="app-footer" id="local-caption"></footer>
+<footer class="app-footer"><span id="local-caption"></span></footer>
+<nav id="mobile-nav" class="mobile-app-nav" aria-label="Navegação no celular" hidden></nav>
+<dialog id="mobile-menu" aria-labelledby="mobile-menu-title">
+  <div class="row spread mobile-menu-heading"><h2 id="mobile-menu-title">Ferramentas</h2><button type="button" class="btn icononly" id="mobile-menu-close" data-act="mobile-menu-close" aria-label="Fechar ferramentas"></button></div>
+  <h3>Modo de trabalho</h3>
+  <div id="mobile-menu-modes" role="group" aria-label="Modo de trabalho"></div>
+  <div id="mobile-menu-links"></div>
+</dialog>
 <dialog id="modal" aria-labelledby="modal-title"></dialog>
 <div id="notice" role="status" class="toast" hidden></div>
 <div id="chart-tooltip" class="chart-tooltip" aria-hidden="true" hidden><strong id="chart-tooltip-name"></strong><span class="chart-tooltip-value" id="chart-tooltip-value"></span></div>

@@ -8,6 +8,11 @@ Este repositório registra a evolução de um **protótipo**. O painel para PC �
 
 - **v0.1.0** · Montei o primeiro painel para computador, com fila de pedidos, estoque, entregas, histórico e fechamento.
 - **v0.2.0** · Aprimorei o fluxo de pedidos e a leitura da fila. Os cards passaram a mostrar produtos e quantidades, e os canais e a ordem do catálogo ficaram mais fáceis de usar.
+- **v0.3.0** · Adaptei a navegação para celular. A fila mostra uma etapa por vez e a engrenagem reúne os modos de trabalho e as ferramentas.
+
+## Teste de quatro colunas
+
+Testei uma quarta coluna na branch `experiment/fila-quatro-colunas`. Mantive três colunas na versão principal, com os itens dos pedidos visíveis nos cards.
 
 ## Como testar
 

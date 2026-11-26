@@ -55,6 +55,7 @@ const statusIcons = {new:'inbox',packing:'box',ready:'packed',route:'truck',comp
 const orderChannels = ['Telefone','WhatsApp','Balcão'];
 const channelName = channel => channel==='Ligação'?'Telefone':channel;
 const payments = ['Pix','Dinheiro','Cartão de débito','Cartão de crédito','Fiado'];
+const modes=[['complete','Completa'],['attendant','Atendente'],['driver','Entregador']];
 const sections = [
   ['board','Visão geral','grid'],['delivery','Entregas','truck'],['stock','Produtos e estoque','box'],
   ['history','Histórico','history'],['reports','Fechamento','wallet'],['analytics','Gráficos e comparativos','chart'],['settings','Configurações','settings']
@@ -111,6 +112,7 @@ function load(which=environment){
 let db=load();
 let page='board', mode='complete', query='', filter='all', reportDate=dateKey(), historyDate='', analyticsPeriod='week';
 let edit=null, dialogState=null, noticeTimer;
+let mobileStage='new';
 function cache(next,which){
   try{localStorage.setItem(prefix+which,JSON.stringify(next));return true}
   catch{return false}
@@ -184,7 +186,7 @@ function editButton(order){
 function cardItems(items){
   const first=items.slice(0,3), remaining=items.slice(3);
   const list=rows=>'<ul class="card-items-list" aria-label="Itens do pedido">'+rows.map(item=>
-    '<li><strong>'+item.qty+'×</strong><span>'+esc(item.name)+'</span></li>').join('')+'</ul>';
+    '<li><strong>'+esc(item.qty)+'×</strong><span>'+esc(item.name)+'</span></li>').join('')+'</ul>';
   if(!items.length)return '';
   return '<div class="card-items">'+list(first)+(remaining.length?'<details><summary>Ver mais '+remaining.length+
     (remaining.length===1?' produto':' produtos')+'</summary>'+list(remaining)+'</details>':'')+'</div>';
@@ -218,12 +220,26 @@ function rowOrder(o){
     '<div><strong>'+money(orderTotal(o))+'</strong><p class="small" title="'+esc(payment)+'">'+esc(payment)+'</p></div>'+
     '<div class="actions">'+btn('Detalhes','detail','','','data-id="'+esc(o.id)+'"')+editButton(o)+'</div></article>';
 }
+// Os filtros do celular usam os mesmos pedidos das colunas do computador.
+function mobileBoardControls(groups){
+  const stages=[['new','Novos','box'],['packing','Em separação','clock'],['route','Em rota','truck']];
+  return '<nav class="mobile-board-controls" aria-label="Fila de pedidos no celular">'+
+    stages.map(([status,label,glyph])=>
+      '<button type="button" data-act="mobile-stage" data-id="'+status+'" aria-controls="order-board" aria-pressed="'+(mobileStage===status)+
+      '">'+icon(glyph)+'<span>'+label+'</span><span class="mobile-stage-count" aria-label="'+groups[status].length+' pedidos">'+groups[status].length+'</span></button>'
+    ).join('')+'</nav>';
+}
 // A fila mostra pedidos abertos. Os finalizados continuam no histórico.
 function board(){
   const today=db.orders.filter(o=>dateKey(o.at)===dateKey());
   const active=db.orders.filter(o=>!isDone(o)).sort((a,b)=>a.at-b.at);
   const visible=active.filter(o=>match(o) && (filter==='all'||channelName(o.channel)===filter));
   const recent=today.filter(o=>isDone(o)&&match(o)&&(filter==='all'||channelName(o.channel)===filter)).sort((a,b)=>b.at-a.at).slice(0,4);
+  const groups={
+    new:visible.filter(o=>o.status==='new'),
+    packing:visible.filter(o=>['packing','ready'].includes(o.status)),
+    route:visible.filter(o=>o.status==='route')
+  };
   const headline=mode==='attendant'?'Balcão de atendimento':'Central de pedidos';
   return '<div class="context"><span>'+icon('calendar')+' '+esc(new Intl.DateTimeFormat('pt-BR',{timeZone:zone,weekday:'long',day:'numeric',month:'long'}).format(new Date()))+'</span>'+
     (environment==='demo'?pill('Dados de demonstração','orange'):'<span>Biquinhas, MG</span>')+'</div>'+
@@ -233,10 +249,11 @@ function board(){
     metric('Em rota',active.filter(o=>o.status==='route').length,'Entregas despachadas','truck','blue')+
     (mode==='complete'?metric('Recebido hoje',money(sum(today.filter(o=>o.paid&&o.status!=='cancelled'),orderTotal)),'Por data do pedido','wallet','green'):
       metric('Concluídos hoje',today.filter(o=>o.status==='completed').length,'Entregas e retiradas','check','green'))+'</div>'+
-    '<section><div class="sectionhead"><div><h2>Fila de pedidos</h2><p>Pedidos abertos, do recebimento à entrega</p></div><div class="toolbar">'+searchBox('Buscar pedido ou endereço')+
-    '<select id="filter" aria-label="Canal">'+options([['all','Filtrar por canal'],...orderChannels],filter)+'</select></div></div>'+
-    '<div class="board">'+lane(labels.new,'new',visible.filter(o=>o.status==='new'))+lane('Separação e retirada','packing',visible.filter(o=>['packing','ready'].includes(o.status)))+
-    lane('Em rota','route',visible.filter(o=>o.status==='route'))+'</div></section>'+
+    '<section class="order-queue"><div class="sectionhead"><div><h2>Fila de pedidos</h2><p>Pedidos abertos, do recebimento à entrega</p></div><div class="toolbar">'+searchBox('Buscar pedido ou endereço')+
+    '<select id="filter" aria-label="Canal">'+options([['all','Filtrar por canal'],...orderChannels],filter)+'</select></div></div>'+mobileBoardControls(groups)+
+    '<div class="board" id="order-board" data-mobile-stage="'+mobileStage+'" tabindex="-1" aria-label="Pedidos por etapa">'+
+    lane(labels.new,'new',groups.new)+lane('Separação e retirada','packing',groups.packing)+
+    lane('Em rota','route',groups.route)+'</div></section>'+
     '<section class="below"><div class="sectionhead"><div><h2>Finalizados hoje</h2><p>Entregas, retiradas e cancelamentos</p></div>'+btn('Ver histórico','open-history','history')+'</div><div class="list">'+
     (recent.map(rowOrder).join('')||'<p class="empty">Nenhum pedido finalizado com estes filtros.</p>')+'</div></section>';
 }
@@ -459,11 +476,35 @@ function allowed(key){
 function updateStorageLabel(){
   $('local-caption').innerHTML=icon('disk')+'<span>'+'Dados neste navegador'+'</span>';
 }
+// No celular, a navegação principal respeita as páginas disponíveis no modo atual.
+function renderMobileNavigation(){
+  const links=sections.filter(([key])=>['board','delivery','history','reports'].includes(key)&&allowed(key));
+  const nav=$('mobile-nav');
+  nav.hidden=links.length<2;
+  const active=nav.contains(document.activeElement)?document.activeElement.dataset.id:null;
+  nav.innerHTML=links.map(([key,label,glyph])=>
+    '<button type="button" class="nav" data-act="navigate" data-id="'+key+'" '+(page===key?'aria-current="page"':'')+'>'+
+    icon(glyph)+'<span>'+esc(label)+'</span></button>').join('');
+  if(active)nav.querySelector('[data-id="'+active+'"]')?.focus({preventScroll:true});
+  document.body.classList.toggle('has-mobile-nav',!nav.hidden);
+}
+
+// Reúno troca de modo e atalhos menos usados na engrenagem.
+function showMobileMenu(){
+  const links=sections.filter(([key])=>['stock','analytics','settings'].includes(key)&&allowed(key));
+  $('mobile-menu-modes').innerHTML=modes.map(([id,name])=>
+    btn(name,'mobile-mode','',mode===id?'primary':'','data-id="'+id+'" aria-pressed="'+(mode===id)+'"')).join('');
+  $('mobile-menu-links').innerHTML=links.length?'<h3>Acessos</h3>'+links.map(([key,label,glyph])=>
+    btn(label,'mobile-link',glyph,'','data-id="'+key+'"')).join(''):'';
+  $('mobile-menu').showModal();
+}
+
 function renderNav(){
   const activeNav=document.activeElement?.closest('#nav .nav')?.dataset.id;
   $('nav').innerHTML=sections.filter(([key])=>allowed(key)).map(([key,label,glyph])=>
     '<button type="button" class="nav" data-act="navigate" data-id="'+key+'" '+(page===key?'aria-current="page"':'')+'>'+icon(glyph)+esc(label)+'</button>').join('');
   if(activeNav) $('nav').querySelector('[data-id="'+activeNav+'"]')?.focus({preventScroll:true});
+  renderMobileNavigation();
   updateStorageLabel();
   $('quick-new').hidden=mode==='driver';
   $('quick-new').innerHTML=icon('plus')+'<span>Novo pedido</span>';
@@ -477,6 +518,7 @@ function render(keepSearch=false){
   renderNav();
   const views={board,delivery,history,stock,reports,analytics:comparison,settings};
   $('main').innerHTML=views[page]();
+  document.body.classList.toggle('has-mobile-board',page==='board');
   if(focused){
     $('search')?.focus();
     $('search')?.setSelectionRange(...selected);
@@ -962,6 +1004,18 @@ async function action(button){
   switch(act){
     case 'navigate':navigate(id);break;
     case 'mode':changeMode(id);break;
+    case 'mobile-menu':showMobileMenu();break;
+    case 'mobile-menu-close':$('mobile-menu').close();break;
+    case 'mobile-mode':$('mobile-menu').close();changeMode(id);break;
+    case 'mobile-link':$('mobile-menu').close();navigate(id);break;
+    case 'mobile-stage':
+      mobileStage=id;
+      $('order-board').dataset.mobileStage=id;
+      for(const tab of button.parentElement.querySelectorAll('[data-act="mobile-stage"]')){
+        tab.setAttribute('aria-pressed',String(tab===button));
+      }
+      $('order-board').scrollIntoView({block:'nearest'});
+      break;
     case 'open-history':navigate('history');break;
     case 'new':
       if(latestClosures().some(c=>c.date===dateKey()&&c.state!=='open'))throw Error('O dia está fechado. Use Fechamento e escolha Reabrir dia.');
@@ -1146,7 +1200,12 @@ document.addEventListener('focusout',e=>{
 });
 window.addEventListener('scroll',hideChartTooltip,true);
 window.addEventListener('resize',hideChartTooltip);
-$('modes').innerHTML=[['complete','Completa'],['attendant','Atendente'],['driver','Entregador']].map(([id,name])=>
+$('mobile-tools').innerHTML=icon('settings');
+$('mobile-menu-close').innerHTML=icon('close');
+matchMedia('(max-width:600px)').addEventListener('change',event=>{
+  if(!event.matches&&$('mobile-menu').open)$('mobile-menu').close();
+});
+$('modes').innerHTML=modes.map(([id,name])=>
   '<button type="button" data-act="mode" data-id="'+id+'">'+name+'</button>').join('');
 $('theme').addEventListener('click',()=>{
   theme=theme==='light'?'dark':'light';
