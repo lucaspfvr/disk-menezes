@@ -20,6 +20,8 @@ const paths = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',
   wallet:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 9h18m-8 5h4"/>',
   check:'<path d="m5 12 4 4L19 6"/>',
+  inbox:'<path d="M4 12 7 5h10l3 7v7H4zM4 12h5l1 3h4l1-3h5"/><path d="M12 7v5m-2-2 2 2 2-2"/>',
+  packed:'<path d="M4 8h16v12H4zM4 8l2-4h12l2 4m-11 6 2 2 4-4"/>',
   search:'<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/>',
   close:'<path d="m6 6 12 12M18 6 6 18"/>',
   print:'<path d="M7 8V3h10v5m-10 9H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-3M7 14h10v7H7z"/>',
@@ -31,6 +33,8 @@ const paths = {
 const icon = name => '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + (paths[name] || '') + '</svg>';
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const productNameCollator = new Intl.Collator('pt-BR',{sensitivity:'base',numeric:true});
+const compareProductNames = (first,second) => productNameCollator.compare(first.name,second.name);
 const norm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 const currency = new Intl.NumberFormat('pt-BR', {style:'currency',currency:'BRL'});
 const money = cents => currency.format(cents / 100);
@@ -46,8 +50,10 @@ const uid = () => globalThis.crypto?.randomUUID?.() || Date.now().toString(36) +
 const code = order => '#' + String(order.number).padStart(3,'0');
 const isDone = o => o.status === 'completed' || o.status === 'cancelled';
 const kindLabels = {entrega:'Entrega',retirada:'Retirada',urbano:'Entrega',rural:'Entrega'};
-const labels = {new:'Recebido',packing:'Em separação',ready:'Pronto',route:'Em rota',completed:'Concluído',cancelled:'Cancelado'};
-const colors = {new:'',packing:'orange',ready:'orange',route:'blue',completed:'green',cancelled:'red'};
+const labels = {new:'Novo pedido',packing:'Em separação',ready:'Pronto',route:'Em rota',completed:'Concluído',cancelled:'Cancelado'};
+const statusIcons = {new:'inbox',packing:'box',ready:'packed',route:'truck',completed:'check',cancelled:'close'};
+const orderChannels = ['Telefone','WhatsApp','Balcão'];
+const channelName = channel => channel==='Ligação'?'Telefone':channel;
 const payments = ['Pix','Dinheiro','Cartão de débito','Cartão de crédito','Fiado'];
 const sections = [
   ['board','Visão geral','grid'],['delivery','Entregas','truck'],['stock','Produtos e estoque','box'],
@@ -70,12 +76,12 @@ function demoData(){
   data.drivers = ['Moto 1','Moto 2'];
   const rows = [
     [101,8,'Ana Paula','urbano','Rua São Sebastião, 42 · Centro','Portão azul, perto da praça','WhatsApp','new','Pix',false,'',500,0,0,[[8,2],[9,1]]],
-    [102,23,'Rafael','rural','Sítio Boa Vista','Após a ponte, primeira porteira à direita','Ligação','new','Dinheiro',false,'',1200,30000,0,[[1,1],[9,1]]],
+    [102,23,'Rafael','rural','Sítio Boa Vista','Após a ponte, primeira porteira à direita','Telefone','new','Dinheiro',false,'',1200,30000,0,[[1,1],[9,1]]],
     [103,29,'Mariana','urbano','Rua da Matriz, 18 · Centro','Entregar na casa da avó','WhatsApp','packing','Pix',true,'',500,0,1,[[3,1]]],
-    [104,35,'Bruno','retirada','','','Ligação','ready','Cartão de débito',false,'',0,0,0,[[5,1],[10,1]]],
+    [104,35,'Bruno','retirada','','','Telefone','ready','Cartão de débito',false,'',0,0,0,[[5,1],[10,1]]],
     [105,41,'Lucas','urbano','Rua do Campo, 78','Casa em frente ao campo','WhatsApp','route','Dinheiro',false,'Moto 1',500,10000,0,[[7,1],[8,2]]],
     [106,65,'Júlia','urbano','Praça da Igreja, 12','Ao lado da padaria','WhatsApp','completed','Pix',true,'Moto 2',500,0,0,[[6,1],[9,1]]],
-    [107,80,'Pedro','retirada','','','Ligação','completed','Dinheiro',true,'',0,20000,1,[[2,1]]]
+    [107,80,'Pedro','retirada','','','Telefone','completed','Dinheiro',true,'',0,20000,1,[[2,1]]]
   ];
   data.orders = rows.map(([number,minutes,name,kind,address,reference,channel,status,payment,paid,driver,fee,cash,bottles,items]) => {
     const now = Date.now();
@@ -146,13 +152,13 @@ function pageHeader(title,description,buttons=''){
   return '<div class="pagehead"><div><h1>'+esc(title)+'</h1><p>'+esc(description)+'</p></div><div class="actions">'+buttons+'</div></div>';
 }
 function metric(label,value,note,glyph,color=''){
-  return '<article class="metric"><div class="metric-top"><span class="tile '+color+'">'+icon(glyph)+'</span>'+esc(label)+'</div><strong>'+esc(value)+'</strong><small>'+esc(note)+'</small></article>';
+  return '<article class="metric"><div class="metric-top"><span class="tile '+color+'">'+icon(glyph)+'</span>'+esc(label)+'</div><strong>'+esc(value)+'</strong>'+(note?'<small>'+esc(note)+'</small>':'')+'</article>';
 }
 function orderTotal(o){return sum(o.items,i=>i.price*i.qty)+o.fee}
 function destination(o){return o.kind==='retirada'?'Retirada no balcão':o.address}
 function isOverdue(o){return o.due && !isDone(o) && new Date(o.due).getTime()<Date.now()}
 function match(o){
-  return norm([code(o),o.name,o.address,o.reference,o.phone,o.driver,o.channel,o.payment,...o.items.map(i=>i.name)].join(' ')).includes(norm(query));
+  return norm([code(o),o.name,o.address,o.reference,o.phone,o.driver,channelName(o.channel),o.payment,...o.items.map(i=>i.name)].join(' ')).includes(norm(query));
 }
 function actionFor(o){
   if(o.status==='new') return ['Separar','packing'];
@@ -161,9 +167,12 @@ function actionFor(o){
   if(o.status==='route') return ['Confirmar entrega','completed'];
   return null;
 }
+function statusBadge(status){
+  return '<span class="order-status stage-'+status+'">'+icon(statusIcons[status])+esc(labels[status])+'</span>';
+}
 function actionButton(o){
   const action=actionFor(o);
-  return action?btn(action[0],'advance','','soft','data-id="'+esc(o.id)+'"'):'';
+  return action?btn(action[0],'advance','','soft order-next-status','data-id="'+esc(o.id)+'"'):'';
 }
 function canEditOrder(order){
   return Boolean(order && mode!=='driver' && ['new','packing','ready'].includes(order.status));
@@ -171,23 +180,33 @@ function canEditOrder(order){
 function editButton(order){
   return canEditOrder(order)?btn('Editar','edit','','','data-id="'+esc(order.id)+'" aria-label="Editar pedido '+code(order)+'"'):'';
 }
+// Mostro até três produtos no card e deixo os demais expansíveis.
+function cardItems(items){
+  const first=items.slice(0,3), remaining=items.slice(3);
+  const list=rows=>'<ul class="card-items-list" aria-label="Itens do pedido">'+rows.map(item=>
+    '<li><strong>'+item.qty+'×</strong><span>'+esc(item.name)+'</span></li>').join('')+'</ul>';
+  if(!items.length)return '';
+  return '<div class="card-items">'+list(first)+(remaining.length?'<details><summary>Ver mais '+remaining.length+
+    (remaining.length===1?' produto':' produtos')+'</summary>'+list(remaining)+'</details>':'')+'</div>';
+}
 function card(o,driverView=false){
-  const channelIcon=o.channel==='Ligação'?'phone':o.channel==='WhatsApp'?'chat':'box';
-  const details=driverView ? o.items.map(i=>i.qty+'× '+i.name).join(' · ') : sum(o.items,i=>i.qty)+' itens · '+o.payment;
-  return '<article class="order"><div class="row spread"><span class="order-code">'+code(o)+'</span>'+pill(o.channel,o.channel==='WhatsApp'?'green':o.channel==='Ligação'?'blue':'')+'</div>'+
+  const channel=channelName(o.channel);
+  const channelIcon=channel==='Telefone'?'phone':channel==='WhatsApp'?'chat':'box';
+  const channelDetails=driverView?channel:channel+' · '+o.payment;
+  return '<article class="order stage-'+o.status+'"><div class="row spread"><span class="order-code">'+code(o)+'</span>'+statusBadge(o.status)+'</div>'+
     '<h3>'+esc(o.name||destination(o))+'</h3>'+
     '<div class="meta">'+icon(o.kind==='retirada'?'box':'pin')+'<span>'+esc(destination(o))+'</span></div>'+
     (o.reference?'<p class="small">'+esc(o.reference)+'</p>':'')+
-    '<div class="meta">'+icon(driverView?'box':channelIcon)+'<span>'+esc(details)+'</span></div>'+
+    '<div class="meta">'+icon(channelIcon)+'<span>'+esc(channelDetails)+'</span></div>'+
     (driverView?'<p class="small"><strong>'+esc(o.payment)+'</strong> · '+(o.paid?'Recebido':'A receber')+(o.cash?' · Troco '+money(o.cash-orderTotal(o)):'')+'</p>':'')+
-    '<div class="row">'+(o.status==='ready'?pill(o.kind==='retirada'?'Pronto para retirada':'Pronto para expedição','orange'):'')+
-    (o.paid?pill('Pago','green'):'')+(o.driver?pill(o.driver,'blue'):'')+(o.bottles>o.returned?pill((o.bottles-o.returned)+' cascos','orange'):'')+
+    '<div class="row">'+(o.paid?pill('Pago','green'):'')+(o.driver?pill(o.driver,'blue'):'')+(o.bottles>o.returned?pill((o.bottles-o.returned)+' cascos','orange'):'')+
     (o.due?pill((isOverdue(o)?'Atrasado · ':'Até ')+time(o.due),isOverdue(o)?'red':''):'')+'</div>'+
-    '<div class="foot"><div class="row spread"><strong>'+money(orderTotal(o))+'</strong><small>'+time(o.at)+'</small></div>'+
+    cardItems(o.items)+'<div class="foot"><div class="row spread"><strong>'+money(orderTotal(o))+'</strong><small>'+time(o.at)+'</small></div>'+
     '<div class="actions" style="margin-top:7px">'+btn('Detalhes','detail','','','data-id="'+esc(o.id)+'"')+editButton(o)+actionButton(o)+'</div></div></article>';
 }
-function lane(title,color,orders,driver=false){
-  return '<section class="lane"><h3 class="lane-title"><span><i class="dot '+color+'"></i>'+title+'</span><span class="count">'+orders.length+'</span></h3><div class="lane-cards">'+
+function lane(title,status,orders,driver=false){
+  return '<section class="lane stage-'+status+'"><h3 class="lane-title"><span class="lane-label"><span class="lane-icon">'+icon(statusIcons[status])+
+    '</span>'+title+'</span><span class="count">'+orders.length+'</span></h3><div class="lane-cards">'+
     (orders.map(o=>card(o,driver)).join('')||'<div class="empty">Sem pedidos nesta etapa</div>')+'</div></section>';
 }
 function rowOrder(o){
@@ -195,7 +214,7 @@ function rowOrder(o){
   const name=o.name||destinationLabel;
   const payment=o.payment+' · '+(o.paid?'recebido':'a receber');
   return '<article class="listrow"><div><p title="'+esc(name)+'"><span class="order-code">'+code(o)+'</span> <strong>'+esc(name)+'</strong></p><p class="small" title="'+esc(destinationLabel)+'">'+esc(destinationLabel)+'</p></div>'+
-    '<div><p>'+pill(labels[o.status],colors[o.status])+'</p><p class="small">'+fullDate(o.at)+' · '+esc(o.channel)+'</p></div>'+
+    '<div><p>'+statusBadge(o.status)+'</p><p class="small">'+fullDate(o.at)+' · '+esc(channelName(o.channel))+'</p></div>'+
     '<div><strong>'+money(orderTotal(o))+'</strong><p class="small" title="'+esc(payment)+'">'+esc(payment)+'</p></div>'+
     '<div class="actions">'+btn('Detalhes','detail','','','data-id="'+esc(o.id)+'"')+editButton(o)+'</div></article>';
 }
@@ -203,21 +222,21 @@ function rowOrder(o){
 function board(){
   const today=db.orders.filter(o=>dateKey(o.at)===dateKey());
   const active=db.orders.filter(o=>!isDone(o)).sort((a,b)=>a.at-b.at);
-  const visible=active.filter(o=>match(o) && (filter==='all'||o.channel===filter));
-  const recent=today.filter(o=>isDone(o)&&match(o)&&(filter==='all'||o.channel===filter)).sort((a,b)=>b.at-a.at).slice(0,4);
+  const visible=active.filter(o=>match(o) && (filter==='all'||channelName(o.channel)===filter));
+  const recent=today.filter(o=>isDone(o)&&match(o)&&(filter==='all'||channelName(o.channel)===filter)).sort((a,b)=>b.at-a.at).slice(0,4);
   const headline=mode==='attendant'?'Balcão de atendimento':'Central de pedidos';
   return '<div class="context"><span>'+icon('calendar')+' '+esc(new Intl.DateTimeFormat('pt-BR',{timeZone:zone,weekday:'long',day:'numeric',month:'long'}).format(new Date()))+'</span>'+
     (environment==='demo'?pill('Dados de demonstração','orange'):'<span>Biquinhas, MG</span>')+'</div>'+
     '<section class="hero"><div><div class="hero-kicker">'+icon('pin')+' Biquinhas, Minas Gerais</div><h1>'+headline+'</h1><p>Registre os pedidos do WhatsApp e do telefone e acompanhe as entregas.</p></div>'+btn('Novo pedido','new','plus')+'</section>'+
-    '<div class="metrics">'+metric('Pedidos de hoje',today.length,'Todos os canais','box')+
+    '<div class="metrics">'+metric('Pedidos de hoje',today.length,'','box')+
     metric('Em andamento',active.length,active.filter(isOverdue).length+' com prazo vencido','clock','orange')+
     metric('Em rota',active.filter(o=>o.status==='route').length,'Entregas despachadas','truck','blue')+
     (mode==='complete'?metric('Recebido hoje',money(sum(today.filter(o=>o.paid&&o.status!=='cancelled'),orderTotal)),'Por data do pedido','wallet','green'):
       metric('Concluídos hoje',today.filter(o=>o.status==='completed').length,'Entregas e retiradas','check','green'))+'</div>'+
     '<section><div class="sectionhead"><div><h2>Fila de pedidos</h2><p>Pedidos abertos, do recebimento à entrega</p></div><div class="toolbar">'+searchBox('Buscar pedido ou endereço')+
-    '<select id="filter" aria-label="Canal">'+options([['all','Todos os canais'],'WhatsApp','Ligação','Balcão'],filter)+'</select></div></div>'+
-    '<div class="board">'+lane('Recebidos','',visible.filter(o=>o.status==='new'))+lane('Separação e retirada','orange',visible.filter(o=>['packing','ready'].includes(o.status)))+
-    lane('Em rota','blue',visible.filter(o=>o.status==='route'))+'</div></section>'+
+    '<select id="filter" aria-label="Canal">'+options([['all','Filtrar por canal'],...orderChannels],filter)+'</select></div></div>'+
+    '<div class="board">'+lane(labels.new,'new',visible.filter(o=>o.status==='new'))+lane('Separação e retirada','packing',visible.filter(o=>['packing','ready'].includes(o.status)))+
+    lane('Em rota','route',visible.filter(o=>o.status==='route'))+'</div></section>'+
     '<section class="below"><div class="sectionhead"><div><h2>Finalizados hoje</h2><p>Entregas, retiradas e cancelamentos</p></div>'+btn('Ver histórico','open-history','history')+'</div><div class="list">'+
     (recent.map(rowOrder).join('')||'<p class="empty">Nenhum pedido finalizado com estes filtros.</p>')+'</div></section>';
 }
@@ -227,8 +246,8 @@ function delivery(){
   return pageHeader('Entregas','Consulte os destinos e confirme a saída e a entrega dos pedidos.')+
     (environment==='demo'?'<p style="margin-bottom:12px">'+pill('Dados de demonstração','orange')+'</p>':'')+
     '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar destino ou pedido')+'<select id="filter" aria-label="Entregador">'+options([['all','Todos os entregadores'],['','Sem responsável'],...db.drivers],filter)+'</select></div>'+
-    '<div class="delivery-grid">'+lane('Prontos para sair','orange',scope.filter(o=>o.status==='ready'),true)+lane('Em rota','blue',scope.filter(o=>o.status==='route'),true)+'</div>'+
-    (mode==='driver'?'':'<div class="below"><h2 style="margin-bottom:9px">Ainda em preparação</h2><div class="delivery-grid">'+lane('Recebidos','',scope.filter(o=>o.status==='new'))+lane('Em separação','orange',scope.filter(o=>o.status==='packing'))+'</div></div>');
+    '<div class="delivery-grid">'+lane('Prontos para sair','ready',scope.filter(o=>o.status==='ready'),true)+lane('Em rota','route',scope.filter(o=>o.status==='route'),true)+'</div>'+
+    (mode==='driver'?'':'<div class="below"><h2 style="margin-bottom:9px">Ainda em preparação</h2><div class="delivery-grid">'+lane(labels.new,'new',scope.filter(o=>o.status==='new'))+lane('Em separação','packing',scope.filter(o=>o.status==='packing'))+'</div></div>');
 }
 function history(){
   const orders=db.orders.filter(o=>match(o)&&(!historyDate||dateKey(o.at)===historyDate)&&
@@ -240,7 +259,7 @@ function history(){
     (orders.map(rowOrder).join('')||'<p class="empty">Nenhum pedido encontrado.</p>')+'</div>';
 }
 function stock(){
-  const products=db.products.filter(p=>norm(p.name+' '+p.category).includes(norm(query))&&(filter==='all'||(filter==='low'?p.active&&p.stock<=p.min:!p.active)));
+  const products=db.products.filter(p=>norm(p.name+' '+p.category).includes(norm(query))&&(filter==='all'||(filter==='low'?p.active&&p.stock<=p.min:!p.active))).sort(compareProductNames);
   return pageHeader('Produtos e estoque','Gerencie o catálogo e confira os níveis de reposição.',btn('Novo produto','product','plus','primary'))+
     '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar produto ou categoria')+'<select id="filter" aria-label="Estoque">'+options([['all','Todos os produtos'],['low','Estoque baixo'],['inactive','Arquivados']],filter)+'</select></div>'+
     '<div class="list">'+(products.map(p=>'<article class="listrow"><div><strong>'+esc(p.name)+'</strong><p class="small">'+esc(p.category)+(p.bottle?' · Retornável':'')+'</p></div><div><strong>'+money(p.price)+'</strong><p class="small">'+p.stock+' un. · Mín. '+p.min+'</p></div><div>'+
@@ -528,7 +547,7 @@ function inputTime(value){
   return dateKey(value)+'T'+new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
 }
 function editOrder(order=null){
-  const source=order||{kind:'entrega',channel:'WhatsApp',payment:'Pix',items:[],fee:deliveryFeeDefault()};
+  const source=order||{kind:'entrega',channel:'Telefone',payment:'Pix',items:[],fee:deliveryFeeDefault()};
   const kind=source.kind==='retirada'?'retirada':'entrega';
   const deliveryFee=(kind==='retirada'?deliveryFeeDefault():source.fee)/100;
   edit={id:order?.id,cart:structuredClone(source.items),original:structuredClone(source.items),deliveryFee,step:1};
@@ -545,7 +564,7 @@ function editOrder(order=null){
     notesField('Observações','notes',source.notes,'maxlength="350"','span2')+'</div></details>';
   const identification='<section class="editor-section" id="order-identification" tabindex="-1" aria-label="Identificação"><div class="formgrid">'+
     kinds+field('Nome ou identificação','name',source.name,'text','maxlength="90" placeholder="Nome do cliente" autocomplete="off"','span2')+
-    destination+select('Canal','channel',['WhatsApp','Ligação','Balcão'],source.channel,'','span2')+
+    destination+select('Canal','channel',orderChannels,channelName(source.channel),'','span2')+
     '</div>'+optional+'</section>';
   const items='<div id="order-items-step" hidden><div class="editor-grid"><section id="cart-section" class="editor-section order-cart"><div class="row spread">'+
     '<h3 tabindex="-1" id="order-cart-title">Itens do pedido</h3><span id="order-cart-count" class="count" aria-live="polite">0</span></div>'+
@@ -622,7 +641,7 @@ function available(product){
 }
 function renderPicker(){
   const term=norm($('product-search').value);
-  const products=db.products.filter(p=>p.active&&norm(p.name+' '+p.category).includes(term));
+  const products=db.products.filter(p=>p.active&&norm(p.name+' '+p.category).includes(term)).sort(compareProductNames);
   $('product-picker').innerHTML=products.map(p=>{
     const remaining=available(p)-sum(edit.cart.filter(i=>i.productId===p.id),i=>i.qty||0);
     return '<div class="itemline"><button type="button" class="btn pick-product" data-act="add-item" data-id="'+esc(p.id)+'" aria-label="Adicionar '+esc(p.name)+'" '+(remaining<=0?'disabled':'')+'>'+
@@ -738,7 +757,7 @@ function detail(o){
   const destinationLink=o.kind==='retirada'?'':cleanLink(o.map)||('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(o.address+' Biquinhas MG'));
   const digits=o.phone.replace(/\D/g,'');
   const tel=digits.length>=10?'<a class="btn" href="tel:+'+(digits.length<=11?'55':'')+digits+'">'+icon('phone')+'Ligar</a>':'';
-  const content='<div class="row">'+pill(labels[o.status],colors[o.status])+pill(o.channel)+
+  const content='<div class="row">'+statusBadge(o.status)+pill(channelName(o.channel))+
     pill(o.paid?'Pagamento recebido':'A receber',o.paid?'green':'orange')+(o.driver?pill(o.driver,'blue'):'')+'</div>'+
     '<div class="report-grid" style="margin-top:12px"><section class="panel"><h3>Destino</h3><p class="textbreak"><strong>'+esc(destination(o))+'</strong></p>'+
     (o.reference?'<p class="textbreak">'+esc(o.reference)+'</p>':'')+(o.phone?'<p class="small">'+esc(o.phone)+'</p>':'')+
@@ -870,7 +889,7 @@ function csvReport(){
     return '"'+text.replace(/"/g,'""')+'"';
   };
   const rows=[['Pedido','Data','Canal','Identificação','Destino','Referência','Entrega','Itens','Total','Taxa','Pagamento','Recebido','Entregador','Situação','Cascos pendentes'],
-    ...orders.map(o=>[code(o),fullDate(o.at),o.channel,o.name,destination(o),o.reference,kindLabels[o.kind],
+    ...orders.map(o=>[code(o),fullDate(o.at),channelName(o.channel),o.name,destination(o),o.reference,kindLabels[o.kind],
       o.items.map(i=>i.qty+'x '+i.name).join(' | '),money(orderTotal(o)),money(o.fee),o.payment,o.paid?'Sim':'Não',o.driver,
       labels[o.status],o.bottles-o.returned])];
   download('disk-menezes-'+(page==='reports'?reportDate:'historico')+'.csv','\ufeff'+rows.map(row=>row.map(safeCell).join(';')).join('\r\n'),'text/csv;charset=utf-8');
