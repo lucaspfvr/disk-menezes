@@ -1,4 +1,3 @@
-
 'use strict';
 
 const paths = {
@@ -180,28 +179,19 @@ function canEditOrder(order){
 function editButton(order){
   return canEditOrder(order)?btn('Editar','edit','','','data-id="'+esc(order.id)+'" aria-label="Editar pedido '+code(order)+'"'):'';
 }
-// Mostro até três produtos no card e deixo os demais expansíveis.
-function cardItems(items){
-  const first=items.slice(0,3), remaining=items.slice(3);
-  const list=rows=>'<ul class="card-items-list" aria-label="Itens do pedido">'+rows.map(item=>
-    '<li><strong>'+item.qty+'×</strong><span>'+esc(item.name)+'</span></li>').join('')+'</ul>';
-  if(!items.length)return '';
-  return '<div class="card-items">'+list(first)+(remaining.length?'<details><summary>Ver mais '+remaining.length+
-    (remaining.length===1?' produto':' produtos')+'</summary>'+list(remaining)+'</details>':'')+'</div>';
-}
 function card(o,driverView=false){
   const channel=channelName(o.channel);
   const channelIcon=channel==='Telefone'?'phone':channel==='WhatsApp'?'chat':'box';
-  const channelDetails=driverView?channel:channel+' · '+o.payment;
+  const details=driverView ? o.items.map(i=>i.qty+'× '+i.name).join(' · ') : sum(o.items,i=>i.qty)+' itens · '+o.payment;
   return '<article class="order stage-'+o.status+'"><div class="row spread"><span class="order-code">'+code(o)+'</span>'+statusBadge(o.status)+'</div>'+
     '<h3>'+esc(o.name||destination(o))+'</h3>'+
     '<div class="meta">'+icon(o.kind==='retirada'?'box':'pin')+'<span>'+esc(destination(o))+'</span></div>'+
     (o.reference?'<p class="small">'+esc(o.reference)+'</p>':'')+
-    '<div class="meta">'+icon(channelIcon)+'<span>'+esc(channelDetails)+'</span></div>'+
+    '<div class="meta">'+icon(driverView?'box':channelIcon)+'<span>'+esc(channel+' · '+details)+'</span></div>'+
     (driverView?'<p class="small"><strong>'+esc(o.payment)+'</strong> · '+(o.paid?'Recebido':'A receber')+(o.cash?' · Troco '+money(o.cash-orderTotal(o)):'')+'</p>':'')+
     '<div class="row">'+(o.paid?pill('Pago','green'):'')+(o.driver?pill(o.driver,'blue'):'')+(o.bottles>o.returned?pill((o.bottles-o.returned)+' cascos','orange'):'')+
     (o.due?pill((isOverdue(o)?'Atrasado · ':'Até ')+time(o.due),isOverdue(o)?'red':''):'')+'</div>'+
-    cardItems(o.items)+'<div class="foot"><div class="row spread"><strong>'+money(orderTotal(o))+'</strong><small>'+time(o.at)+'</small></div>'+
+    '<div class="foot"><div class="row spread"><strong>'+money(orderTotal(o))+'</strong><small>'+time(o.at)+'</small></div>'+
     '<div class="actions" style="margin-top:7px">'+btn('Detalhes','detail','','','data-id="'+esc(o.id)+'"')+editButton(o)+actionButton(o)+'</div></div></article>';
 }
 function lane(title,status,orders,driver=false){
@@ -235,8 +225,8 @@ function board(){
       metric('Concluídos hoje',today.filter(o=>o.status==='completed').length,'Entregas e retiradas','check','green'))+'</div>'+
     '<section><div class="sectionhead"><div><h2>Fila de pedidos</h2><p>Pedidos abertos, do recebimento à entrega</p></div><div class="toolbar">'+searchBox('Buscar pedido ou endereço')+
     '<select id="filter" aria-label="Canal">'+options([['all','Filtrar por canal'],...orderChannels],filter)+'</select></div></div>'+
-    '<div class="board">'+lane(labels.new,'new',visible.filter(o=>o.status==='new'))+lane('Separação e retirada','packing',visible.filter(o=>['packing','ready'].includes(o.status)))+
-    lane('Em rota','route',visible.filter(o=>o.status==='route'))+'</div></section>'+
+    '<div class="board">'+['new','packing','ready','route'].map(status=>
+      lane(labels[status],status,visible.filter(o=>o.status===status))).join('')+'</div></section>'+
     '<section class="below"><div class="sectionhead"><div><h2>Finalizados hoje</h2><p>Entregas, retiradas e cancelamentos</p></div>'+btn('Ver histórico','open-history','history')+'</div><div class="list">'+
     (recent.map(rowOrder).join('')||'<p class="empty">Nenhum pedido finalizado com estes filtros.</p>')+'</div></section>';
 }
