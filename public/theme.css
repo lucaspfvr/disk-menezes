@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light;
+  --bg: light-dark(#F1F4F5, #24292D);
+  --surface: light-dark(#FAFBFC, #2D3439);
+  --line: light-dark(#DFE5E8, #414A51);
+  --ink: light-dark(#30383F, #E3E8EA);
+  --muted: light-dark(#606C75, #ACB8C0);
+  --identity: #FBC014;
+  --accent: light-dark(#FBC014, #D8C17B);
+  --accent-text: #30383F;
+  --accent-hover: light-dark(#EAB50D, #E0CD94);
+  --soft: light-dark(#E8EDF0, #323B41);
+  --hover: light-dark(#E2E8EB, #3A454C);
+  --control-line: light-dark(#7B8991, #819199);
+  --focus: light-dark(#735C12, #D8C17B);
+  --brand-ink: light-dark(#624B13, #E4D19B);
+  --brand-soft: light-dark(#F6EBCB, #403B2E);
+  --brand-line: light-dark(#876D20, #B19C60);
+  --disabled-bg: light-dark(#E2E8EB, #3B444A);
+  --disabled-ink: light-dark(#525E66, #B4BFC5);
+  --shadow: 0 1px 2px light-dark(#30383F0C, transparent);
+  --dialog-shadow: 0 12px 34px light-dark(#1C232647, #0D101547);
+  --backdrop: light-dark(#1C23268A, #101417A0);
+  --danger: light-dark(#A51D28, #F39EA2);
+  --red-tint: light-dark(#F1E1E2, #473236);
+  --green: light-dark(#256044, #A8DFC3);
+  --green-tint: light-dark(#E3EEE8, #31473F);
+  --orange: light-dark(#774119, #E8C397);
+  --orange-tint: light-dark(#F1E9DD, #483E32);
+  --blue: light-dark(#2F576E, #B5D3E8);
+  --blue-tint: light-dark(#E2ECF0, #344652);
+  --status-text: #FFFFFF;
+  --status-new: #14734A;
+  --status-packing: #A45C20;
+  --status-ready: #7047A5;
+  --status-route: #265DA5;
+  --status-completed: #526B78;
+  --status-cancelled: #B91C25;
+  --mark-new: light-dark(#168151, #5AD39A);
+  --mark-packing: light-dark(#B66A24, #E6A15C);
+  --mark-ready: light-dark(#7950B2, #AD91D9);
+  --mark-route: light-dark(#2864B8, #71A5E5);
+  --mark-completed: light-dark(#526B78, #9BB4C1);
+  --mark-cancelled: light-dark(#B91C25, #E34445);
+}
+
+:root[data-theme="dark"] { color-scheme: dark; }
+
+@media (prefers-color-scheme: dark) {
+  :root.auth-page { color-scheme: dark; }
+}
