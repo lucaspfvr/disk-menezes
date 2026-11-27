@@ -231,8 +231,15 @@ const options=(entries, selected) => entries.map(entry => {
   const [value,label]=Array.isArray(entry)?entry:[entry,entry];
   return '<option value="'+esc(value)+'" '+(String(value)===String(selected)?'selected':'')+'>'+esc(label)+'</option>';
 }).join('');
-function pageHeader(title,description,buttons=''){
-  return '<div class="pagehead"><div><h1>'+esc(title)+'</h1><p>'+esc(description)+'</p></div><div class="actions">'+buttons+'</div></div>';
+function pageTitle(title,showOnMobile=false){
+  return '<h1 class="page-title'+(showOnMobile?' page-title-mobile':'')+'">'+esc(title)+'</h1>';
+}
+const headerDateFormat=new Intl.DateTimeFormat('pt-BR',{timeZone:zone,weekday:'short',day:'numeric',month:'long'});
+function updateHeaderDate(){
+  const now=new Date();
+  $('header-date').dateTime=dateKey(now);
+  $('header-date').textContent=headerDateFormat.format(now).replace('.', '');
+  $('header-demo').hidden=environment!=='demo';
 }
 function metric(label,value,note,glyph,color=''){
   return '<article class="metric"><div class="metric-top"><span class="tile '+color+'">'+icon(glyph)+'</span>'+esc(label)+'</div><strong>'+esc(value)+'</strong>'+(note?'<small>'+esc(note)+'</small>':'')+'</article>';
@@ -321,10 +328,8 @@ function board(){
     packing:visible.filter(o=>['packing','ready'].includes(o.status)),
     route:visible.filter(o=>o.status==='route')
   };
-  const headline=mode==='attendant'?'Balcão de atendimento':'Central de pedidos';
-  return '<div class="context"><span>'+icon('calendar')+' '+esc(new Intl.DateTimeFormat('pt-BR',{timeZone:zone,weekday:'long',day:'numeric',month:'long'}).format(new Date()))+'</span>'+
-    (environment==='demo'?pill('Dados de demonstração','orange'):'<span>Biquinhas, MG</span>')+'</div>'+
-    '<section class="hero"><div><div class="hero-kicker">'+icon('pin')+' Biquinhas, Minas Gerais</div><h1>'+headline+'</h1><p>Registre os pedidos do WhatsApp e do telefone e acompanhe as entregas.</p></div>'+btn('Novo pedido','new','plus')+'</section>'+
+  return pageTitle('Visão geral')+
+    btn('Novo pedido','new','plus','primary overview-new')+
     '<div class="metrics">'+metric('Pedidos de hoje',today.length,'','box')+
     metric('Em andamento',active.length,active.filter(isOverdue).length+' com prazo vencido','clock','orange')+
     metric('Em rota',active.filter(o=>o.status==='route').length,'Entregas despachadas','truck','blue')+
@@ -341,8 +346,7 @@ function board(){
 function delivery(){
   const scope=db.orders.filter(o=>o.kind!=='retirada'&&!isDone(o)&&match(o)&&(filter==='all'||o.driver===filter));
   scope.sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')||a.at-b.at);
-  return pageHeader('Entregas','Consulte os destinos e confirme a saída e a entrega dos pedidos.')+
-    (environment==='demo'?'<p style="margin-bottom:12px">'+pill('Dados de demonstração','orange')+'</p>':'')+
+  return pageTitle('Entregas',mode==='driver')+
     '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar destino ou pedido')+'<select id="filter" aria-label="Entregador">'+options([['all','Todos os entregadores'],['','Sem responsável'],...db.drivers],filter)+'</select></div>'+
     '<div class="delivery-grid">'+lane('Prontos para sair','ready',scope.filter(o=>o.status==='ready'),true)+lane('Em rota','route',scope.filter(o=>o.status==='route'),true)+'</div>'+
     (mode==='driver'?'':'<div class="below"><h2 style="margin-bottom:9px">Ainda em preparação</h2><div class="delivery-grid">'+lane(labels.new,'new',scope.filter(o=>o.status==='new'))+lane('Em separação','packing',scope.filter(o=>o.status==='packing'))+'</div></div>');
@@ -350,16 +354,16 @@ function delivery(){
 function history(){
   const orders=db.orders.filter(o=>match(o)&&(!historyDate||dateKey(o.at)===historyDate)&&
     (filter==='all'||(filter==='bottles'?o.bottles>o.returned&&o.status!=='cancelled':filter==='unpaid'?!o.paid&&o.status!=='cancelled':(filter==='active'?!isDone(o):o.status===filter)))).sort((a,b)=>b.at-a.at);
-  return pageHeader('Histórico','Consulte pedidos, pagamentos pendentes e devolução de cascos.',btn('Exportar CSV','csv','download'))+
+  return pageTitle('Histórico')+
     '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar no histórico')+
     '<select id="filter" aria-label="Situação">'+options([['all','Todas as situações'],['active','Em andamento'],...Object.entries(labels),['unpaid','A receber'],['bottles','Cascos pendentes']],filter)+'</select>'+
-    '<input id="history-date" type="date" aria-label="Data do pedido" value="'+esc(historyDate)+'"></div><p class="small" style="margin-bottom:8px">'+orders.length+' pedido(s)</p><div class="list history-list">'+
+    '<input id="history-date" type="date" aria-label="Data do pedido" value="'+esc(historyDate)+'">'+btn('Exportar CSV','csv','download')+'</div><p class="small" style="margin-bottom:8px">'+orders.length+' pedido(s)</p><div class="list history-list">'+
     (orders.map(rowOrder).join('')||'<p class="empty">Nenhum pedido encontrado.</p>')+'</div>';
 }
 function stock(){
   const products=db.products.filter(p=>norm(p.name+' '+p.category).includes(norm(query))&&(filter==='all'||(filter==='low'?p.active&&p.stock<=p.min:!p.active))).sort(compareProductNames);
-  return pageHeader('Produtos e estoque','Gerencie o catálogo e confira os níveis de reposição.',btn('Novo produto','product','plus','primary'))+
-    '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar produto ou categoria')+'<select id="filter" aria-label="Estoque">'+options([['all','Todos os produtos'],['low','Estoque baixo'],['inactive','Arquivados']],filter)+'</select></div>'+
+  return pageTitle('Produtos e estoque',true)+
+    '<div class="toolbar" style="margin-bottom:12px">'+searchBox('Buscar produto ou categoria')+'<select id="filter" aria-label="Estoque">'+options([['all','Todos os produtos'],['low','Estoque baixo'],['inactive','Arquivados']],filter)+'</select>'+btn('Novo produto','product','plus','primary')+'</div>'+
     '<div class="list">'+(products.map(p=>'<article class="listrow"><div><strong>'+esc(p.name)+'</strong><p class="small">'+esc(p.category)+(p.bottle?' · Retornável':'')+'</p></div><div><strong>'+money(p.price)+'</strong><p class="small">'+p.stock+' un. · Mín. '+p.min+'</p></div><div>'+
       (!p.active?pill('Arquivado'):p.stock===0?pill('Esgotado','red'):p.stock<=p.min?pill('Estoque baixo','orange'):pill('Disponível','green'))+'</div><div class="actions">'+
       btn('Ajustar estoque','stock-adjust','','','data-id="'+esc(p.id)+'"')+btn('Editar','product','','','data-id="'+esc(p.id)+'"')+'</div></article>').join('')||'<p class="empty">Nenhum produto encontrado.</p>')+'</div>';
@@ -380,10 +384,10 @@ function reports(print=false){
   const byDriver=db.drivers.map(driver=>[driver,t.valid.filter(o=>o.driver===driver&&o.status==='completed').length]);
   const skipKm=(db.skipMileage||[]).includes(reportDate);
   const km=skipKm?[]:db.mileage.filter(entry=>entry.date===reportDate);
-  return (print?'<h1>Disk Menezes · Fechamento</h1><p>'+dayLabel(reportDate)+'</p>':pageHeader('Fechamento','Confira o movimento por data. Os pedidos continuam no histórico.',
-    btn('Copiar resumo','copy-closing','copy')+btn('Imprimir / PDF','report-print','print')+btn('Exportar CSV','csv','download')+closureActions)+
-    '<div class="toolbar"><label class="field">Data do movimento<input id="report-date" type="date" value="'+esc(reportDate)+'"></label>'+
-    (closing?pill(closed?'Fechado às '+time(closing.at):'Reaberto às '+time(closing.at),closed?'green':'orange'):'')+'</div>')+
+  return (print?'<h1>Disk Menezes · Fechamento</h1><p>'+dayLabel(reportDate)+'</p>':pageTitle('Fechamento')+
+    '<div class="toolbar compact-controls"><label class="field">Data do movimento<input id="report-date" type="date" value="'+esc(reportDate)+'"></label>'+
+    (closing?pill(closed?'Fechado às '+time(closing.at):'Reaberto às '+time(closing.at),closed?'green':'orange'):'')+
+    '<div class="actions">'+closureActions+btn('Copiar resumo','copy-closing','copy')+btn('Imprimir / PDF','report-print','print')+btn('Exportar CSV','csv','download')+'</div></div>')+
     '<div class="metrics">'+metric('Vendas registradas',money(sum(t.valid,orderTotal)),t.valid.length+' pedido(s)','box')+
     metric('Recebido',money(sum(t.paid,orderTotal)),t.paid.length+' pedido(s) pagos','wallet','green')+
     metric('A receber',money(sum(t.unpaid,orderTotal)),t.unpaid.length+' pedido(s) pendentes','clock','orange')+
@@ -522,8 +526,9 @@ function comparison(print=false){
   const group=(label,tone,parts)=>billingMetric(label,sum(parts,row=>row.current),sum(parts,row=>row.previous),tone,parts);
   const periodText='Atual '+dayLabel(currentStart)+' a '+dayLabel(dateKey())+' · Anterior '+dayLabel(prevStart)+' a '+dayLabel(new Date(Date.parse(currentStart+'T00:00:00Z')-86400000).toISOString().slice(0,10));
   return '<div class="billing-report">'+(print?'<h1>Disk Cerveja Menezes · Gráficos e comparativos</h1>':
-    pageHeader('Gráficos e comparativos','Compare o faturamento e os produtos nos períodos selecionados.',btn('Imprimir / PDF','analytics-print','print'))+
-    '<label class="field" style="max-width:190px">Período<select id="analytics-period">'+options(periodChoices,analyticsPeriod)+'</select></label>')+
+    pageTitle('Gráficos e comparativos',true)+
+    '<div class="toolbar compact-controls"><label class="field">Período<select id="analytics-period">'+options(periodChoices,analyticsPeriod)+'</select></label>'+
+    btn('Imprimir / PDF','analytics-print','print')+'</div>')+
     '<p class="small" style="margin-top:9px">'+periodText+'</p>'+
     '<div class="metrics billing-metrics">'+billingMetric('Faturamento no período',sum(current,orderTotal),sum(prev,orderTotal),'')+
     group('Cartão (crédito + débito)','credit',[credit,debit])+group('Dinheiro + Pix','cash',[cash,pix])+
@@ -537,7 +542,7 @@ function comparison(print=false){
 const deliveryFeeDefault = () => db.fees.entrega ?? db.fees.urbano ?? 0;
 // Cada ambiente tem sua própria base e pode ser exportado como backup.
 function settings(){
-  return pageHeader('Configurações','Ajuste a operação e exporte cópias dos dados.')+
+  return pageTitle('Configurações',true)+
     '<div class="settings-grid"><section class="panel"><h2>Ambiente</h2><p class="mute">'+(environment==='demo'?
     'Você está testando com pedidos fictícios. A operação real começa com uma base separada.':'Você está na operação real. Os dados podem ser exportados em backup.')+'</p>'+
     btn(environment==='demo'?'Abrir operação real':'Abrir demonstração','environment','','primary')+'</section>'+
@@ -597,6 +602,7 @@ function render(keepSearch=false){
   const focused=keepSearch && document.activeElement?.id==='search';
   const selected=focused?[document.activeElement.selectionStart,document.activeElement.selectionEnd]:[];
   renderNav();
+  updateHeaderDate();
   const views={board,delivery,history,stock,reports,analytics:comparison,settings};
   $('main').innerHTML=views[page]();
   document.body.classList.toggle('has-mobile-board',page==='board');
@@ -1376,7 +1382,7 @@ $('backup-file').addEventListener('change',async event=>{
 window.addEventListener('storage',event=>{
   if(!hosted&&event.key===prefix+environment&&!$('modal').open){db=load();render(true);}
 });
-setInterval(()=>{if((page==='board'||page==='delivery')&&!$('modal').open&&document.activeElement===document.body)render();},60000);
+setInterval(()=>{updateHeaderDate();if((page==='board'||page==='delivery')&&!$('modal').open&&document.activeElement===document.body)render();},60000);
 window.addEventListener('focus',()=>{if(!$('modal').open)refreshRemote();});
 if(hosted)setInterval(()=>{if(!document.hidden&&!$('modal').open)refreshRemote();},25000);
 $('sign-out').hidden=!hosted;

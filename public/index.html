@@ -199,15 +199,21 @@ button.chart-bar:hover{filter:brightness(1.12)}
 .app-footer #local-caption{display:inline-flex;align-items:center;gap:6px}#sign-out[hidden]{display:none}#storage-banner a{color:inherit;font-weight:700;text-decoration:underline}
 </style>
 <style>
-.mobile-board-controls,.mobile-app-nav,#mobile-tools{display:none}
+.mobile-board-controls,.mobile-app-nav,#mobile-tools,.overview-new.btn{display:none}
+.page-title{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.header-meta{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;margin-top:3px;color:var(--muted);font-size:.73rem;line-height:1.2}
+.header-meta time::first-letter{text-transform:uppercase}
+.header-meta .pill{padding:2px 5px;font-size:.64rem}
+.header-meta .pill[hidden]{display:none}
+.compact-controls{align-items:end}
+.has-mobile-board main>.metrics:first-of-type{margin-top:0}
 @media screen and (max-width:600px){
   header #modes,header #nav,.has-mobile-board #quick-new{display:none}
   #mobile-tools{display:inline-flex}
+  .page-title-mobile{position:static;width:auto;height:auto;margin:0 0 10px;overflow:visible;clip-path:none;white-space:normal;font-size:1.24rem}
+  .header-meta{font-size:.7rem}
+  .overview-new.btn{display:flex;justify-content:center;width:100%;min-height:50px;font-size:1rem;margin-bottom:10px}
   body.has-mobile-nav{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
-  .has-mobile-board .hero{padding:15px;min-height:0;gap:10px}
-  .has-mobile-board .hero h1{font-size:clamp(1.45rem,5.6vw,1.85rem);margin:0}
-  .has-mobile-board .hero .hero-kicker,.has-mobile-board .hero p{display:none}
-  .has-mobile-board .hero .btn{width:100%;min-height:50px;justify-content:center;font-size:1rem}
   .has-mobile-board .metrics .metric{padding:10px}
   .has-mobile-board .metrics .metric small,.order-queue .sectionhead p{display:none}
   #order-board{scroll-margin-top:62px;scroll-margin-bottom:72px}
@@ -279,7 +285,7 @@ button.chart-bar:hover{filter:brightness(1.12)}
                         <text font-family="Inter, sans-serif" font-weight="800" font-size="12.5" fill="#fbbf24" stroke="#1e293b" stroke-width="1" paint-order="stroke">
                             <textPath href="#telArc" startOffset="50%" text-anchor="middle">37 9.9917-****</textPath>
                         </text>
-                    </svg></span><div><strong>Disk <em>Menezes</em></strong><small>Biquinhas, MG</small><span class="contact">(37) 9.9917-****</span></div></div>
+                    </svg></span><div><strong>Disk <em>Menezes</em></strong><span class="contact">(37) 9.9917-****</span><div class="header-meta"><time id="header-date"></time><span id="header-demo" class="pill orange" hidden>Demonstração</span></div></div></div>
     <div class="modebar" role="group" aria-label="Modo de visualização" id="modes"></div>
     <div class="top-actions">
       <button class="btn icononly" id="theme"></button>
