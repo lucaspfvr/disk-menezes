@@ -1,4 +1,4 @@
-import { app, html, loginPage } from './assets.generated.mjs';
+import { app, html, loginPage, themeCss } from './assets.generated.mjs';
 import { loadWorkspace, storeWorkspace } from './workspace.mjs';
 
 const sessionSeconds = 30 * 24 * 60 * 60;
@@ -208,6 +208,7 @@ async function route(request, env) {
   const url = new URL(request.url);
   const { pathname } = url;
   const { method } = request;
+  if (pathname === '/theme.css' && method === 'GET') return asset(themeCss, 'text/css; charset=utf-8');
   if (!env.DB || !env.SUPABASE_KEY || !env.SUPABASE_URL) return json({ error: 'Configuração pendente.' }, 503);
   const allowlist = new Set((env.DISK_ALLOWED_EMAILS ?? '').split(',').map(email => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.size) return json({ error: 'Acesso ainda não configurado.' }, 503);

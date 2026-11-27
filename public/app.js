@@ -31,6 +31,7 @@ const paths = {
 };
 const icon = name => '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + (paths[name] || '') + '</svg>';
 const $ = id => document.getElementById(id);
+const mobileLayout=matchMedia('(max-width:600px)');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const productNameCollator = new Intl.Collator('pt-BR',{sensitivity:'base',numeric:true});
 const compareProductNames = (first,second) => productNameCollator.compare(first.name,second.name);
@@ -262,7 +263,7 @@ function statusBadge(status){
 }
 function actionButton(o){
   const action=actionFor(o);
-  return action?btn(action[0],'advance','','soft order-next-status','data-id="'+esc(o.id)+'"'):'';
+  return action?btn(action[0],'advance','','soft','data-id="'+esc(o.id)+'"'):'';
 }
 function canEditOrder(order){
   return Boolean(order && mode!=='driver' && ['new','packing','ready'].includes(order.status));
@@ -325,7 +326,8 @@ function board(){
   const recent=today.filter(o=>isDone(o)&&match(o)&&(filter==='all'||channelName(o.channel)===filter)).sort((a,b)=>b.at-a.at).slice(0,4);
   const groups={
     new:visible.filter(o=>o.status==='new'),
-    packing:visible.filter(o=>['packing','ready'].includes(o.status)),
+    packing:visible.filter(o=>o.status==='packing'||(mobileLayout.matches&&o.status==='ready')),
+    ready:visible.filter(o=>o.status==='ready'),
     route:visible.filter(o=>o.status==='route')
   };
   return pageTitle('Visão geral')+
@@ -338,7 +340,8 @@ function board(){
     '<section class="order-queue"><div class="sectionhead"><div><h2>Fila de pedidos</h2><p>Pedidos abertos, do recebimento à entrega</p></div><div class="toolbar">'+searchBox('Buscar pedido ou endereço')+
     '<select id="filter" aria-label="Canal">'+options([['all','Filtrar por canal'],...orderChannels],filter)+'</select></div></div>'+mobileBoardControls(groups)+
     '<div class="board" id="order-board" data-mobile-stage="'+mobileStage+'" tabindex="-1" aria-label="Pedidos por etapa">'+
-    lane(labels.new,'new',groups.new)+lane('Separação e retirada','packing',groups.packing)+
+    lane(labels.new,'new',groups.new)+lane(mobileLayout.matches?'Separação e retirada':labels.packing,'packing',groups.packing)+
+    (mobileLayout.matches?'':lane(labels.ready,'ready',groups.ready))+
     lane('Em rota','route',groups.route)+'</div></section>'+
     '<section class="below"><div class="sectionhead"><div><h2>Finalizados hoje</h2><p>Entregas, retiradas e cancelamentos</p></div>'+btn('Ver histórico','open-history','history')+'</div><div class="list">'+
     (recent.map(rowOrder).join('')||'<p class="empty">Nenhum pedido finalizado com estes filtros.</p>')+'</div></section>';
@@ -630,6 +633,7 @@ function changeMode(next){
 }
 function applyTheme(){
   document.documentElement.dataset.theme=theme;
+  document.querySelector('meta[name="theme-color"]').content=getComputedStyle(document.body).backgroundColor;
   const label=theme==='light'?'Ativar tema escuro':'Ativar tema claro';
   $('theme').innerHTML=icon(theme==='light'?'moon':'sun');
   $('theme').setAttribute('aria-label',label);
@@ -1291,8 +1295,9 @@ window.addEventListener('scroll',hideChartTooltip,true);
 window.addEventListener('resize',hideChartTooltip);
 $('mobile-tools').innerHTML=icon('settings');
 $('mobile-menu-close').innerHTML=icon('close');
-matchMedia('(max-width:600px)').addEventListener('change',event=>{
+mobileLayout.addEventListener('change',event=>{
   if(!event.matches&&$('mobile-menu').open)$('mobile-menu').close();
+  if(page==='board')render(true);
 });
 $('modes').innerHTML=modes.map(([id,name])=>
   '<button type="button" data-act="mode" data-id="'+id+'">'+name+'</button>').join('');
